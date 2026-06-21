@@ -1,44 +1,37 @@
-import httpx
 import os
-from dotenv import load_dotenv
+import anthropic
+import logging
 
-load_dotenv()
+logger = logging.getLogger(__name__)
 
-HF_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
-SUMMARY_MODEL = "facebook/bart-large-cnn"
-HF_BASE_URL = "https://api-inference.huggingface.co/models"
+client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 
 def summarise(text: str) -> str:
     """
-    Generate a neutral summary of the article text.
+    Generate a neutral, bias-free summary using Claude.
     
-    BART-CNN was trained on news article summarisation —
-    it's one of the best models for this specific task.
-    It produces concise, neutral summaries that capture
-    the core facts without the original article's framing.
+    The prompt explicitly instructs Claude to strip out emotionally
+    charged language and present only the core facts.
     """
-    headers = {"Authorization": f"Bearer {HF_API_KEY}"}
-    url = f"{HF_BASE_URL}/{SUMMARY_MODEL}"
+    prompt = f"""Summarise the following news article in 2-3 sentences.
 
-    payload = {
-        "inputs": text[:1024],  # BART-CNN has a 1024 token limit
-        "parameters": {
-            "max_length": 130,
-            "min_length": 50,
-            "do_sample": False  # Deterministic output — same input = same summary
-        }
-    }
+Rules:
+- Use neutral, factual language only
+- Remove emotional framing, loaded words, and opinion
+- Focus on who, what, when, where
+- Do not start with "The article" or "This article"
+- Write as if you are a neutral wire service journalist
 
-    response = httpx.post(url, headers=headers, json=payload, timeout=60.0)
+Article text:
+{text}
 
-    if response.status_code == 503:
-        return "Summary temporarily unavailable — model is warming up."
+Neutral summary:"""
 
-    if response.status_code != 200:
-        return "Summary could not be generated."
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=200,
+        messages=[{"role": "user", "content": prompt}]
+    )
 
-    result = response.json()
-
-    # Result format: [{"summary_text": "..."}]
-    return result[0].get("summary_text", "Summary unavailable.")
+    return message.content[0].text.strip()

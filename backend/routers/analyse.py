@@ -90,3 +90,55 @@ async def analyse_article(request: AnalyseRequest):
         analysed_at=now,
         cached=False
     ) 
+
+@router.get("/debug")
+async def debug():
+    import os
+    import anthropic
+
+    results = {}
+
+    # Test env vars
+    hf_key = os.getenv("HUGGINGFACE_API_KEY")
+    sb_url = os.getenv("SUPABASE_URL")
+    ant_key = os.getenv("ANTHROPIC_API_KEY")
+
+    results["env"] = {
+        "anthropic_key_present": bool(ant_key),
+        "anthropic_key_prefix": ant_key[:10] if ant_key else None,
+        "sb_url": sb_url,
+    }
+
+    # Test Anthropic
+    try:
+        client = anthropic.Anthropic(api_key=ant_key)
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=20,
+            messages=[{"role": "user", "content": "Reply with just: ok"}]
+        )
+        results["anthropic"] = {"ok": True, "response": msg.content[0].text}
+    except Exception as e:
+        results["anthropic"] = {"error": str(e)}
+
+    # Test Supabase
+    try:
+        import httpx
+        r = httpx.get(sb_url, timeout=10.0)
+        results["supabase"] = {"status": r.status_code, "ok": True}
+    except Exception as e:
+        results["supabase"] = {"error": str(e)}
+
+    # Test scraper
+    try:
+        from backend.services.scraper import scrape_article
+        article = scrape_article("https://www.bbc.com/news/world")
+        results["scraper"] = {
+            "ok": True,
+            "headline": article["headline"],
+            "text_length": len(article["text"])
+        }
+    except Exception as e:
+        results["scraper"] = {"error": str(e)}
+
+    return results
