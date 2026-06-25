@@ -10,89 +10,112 @@ client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 def classify_bias(text: str) -> dict:
     """
-    Classify political bias using Claude.
-    
-    We ask Claude to reason about the language, framing, and
-    word choices in the article and return a structured JSON result.
-    Prompt engineering replaces the zero-shot model entirely.
+    Classify political bias using Claude with improved prompting.
+    Forces a committed assessment rather than defaulting to centre.
     """
-    prompt = f"""Analyse the political bias of the following news article text.
+    prompt = f"""You are a media bias analyst with expertise in political language and framing.
 
-Return ONLY a JSON object with exactly these fields:
+Analyse the political bias in this news article text. Look for:
+- Word choices that favour one political perspective
+- Which groups or policies are framed positively vs negatively  
+- Whose voices and quotes are included or excluded
+- What context is provided or omitted
+- Emotional language that signals political alignment
+
+You MUST commit to a specific assessment. Do not default to "centre" unless the article is genuinely balanced from multiple angles.
+
+Return ONLY a valid JSON object, no other text:
 {{
-  "label": one of ["left-wing", "centre-left", "centre", "centre-right", "right-wing"],
-  "confidence": a float between 0.0 and 1.0,
-  "reasoning": a single sentence explaining your assessment
+  "label": "one of: left-wing, centre-left, centre, centre-right, right-wing",
+  "confidence": "float 0.0-1.0 — be bold, most articles score above 0.6",
+  "reasoning": "one sentence citing specific language or framing choices"
 }}
 
-Article text:
-{text}
-
-Return only the JSON object, no other text."""
+Article text to analyse:
+{text}"""
 
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=200,
+        max_tokens=300,
         messages=[{"role": "user", "content": prompt}]
     )
 
     raw = message.content[0].text.strip()
 
+    # Strip markdown code fences if Claude adds them
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    raw = raw.strip()
+
     try:
         result = json.loads(raw)
         return {
-            "label": result["label"],
-            "confidence": round(float(result["confidence"]), 3)
+            "label": result.get("label", "centre"),
+            "confidence": round(float(result.get("confidence", 0.5)), 3),
+            "reasoning": result.get("reasoning", "")
         }
-    except (json.JSONDecodeError, KeyError) as e:
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
         logger.warning(f"Failed to parse bias response: {raw}")
-        return {"label": "centre", "confidence": 0.5}
+        return {"label": "centre", "confidence": 0.5, "reasoning": ""}
 
 
 def classify_tone(text: str) -> dict:
     """
-    Classify emotional tone using Claude.
-    
-    We ask Claude to assess how emotionally charged the language
-    is — from calm and factual to highly inflammatory.
+    Classify emotional tone with improved prompting.
     """
-    prompt = f"""Analyse the emotional tone of the following news article text.
+    prompt = f"""You are a linguistic analyst specialising in media tone and emotional language.
 
-Return ONLY a JSON object with exactly these fields:
+Analyse the emotional tone of this news article. Look for:
+- Emotionally charged adjectives and adverbs
+- Inflammatory or sensationalist language
+- Calm, measured, factual reporting style
+- Fear, anger, or outrage-inducing framing
+- Positive or celebratory framing
+
+Score the emotional intensity honestly. Most news articles are NOT neutral — 
+they score between 0.3 and 0.8. Only pure wire-service reporting scores below 0.3.
+
+Return ONLY a valid JSON object, no other text:
 {{
-  "label": one of ["neutral", "moderately charged", "highly charged", "positive"],
-  "score": a float between 0.0 and 1.0 where 0.0 is completely neutral and 1.0 is extremely emotional,
-  "reasoning": a single sentence explaining your assessment
+  "label": "one of: neutral, moderately charged, highly charged, positive",
+  "score": "float 0.0-1.0 where 0.0 is completely factual and 1.0 is extremely emotional",
+  "reasoning": "one sentence citing specific language examples"
 }}
 
-Article text:
-{text}
-
-Return only the JSON object, no other text."""
+Article text to analyse:
+{text}"""
 
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=200,
+        max_tokens=300,
         messages=[{"role": "user", "content": prompt}]
     )
 
     raw = message.content[0].text.strip()
 
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    raw = raw.strip()
+
     try:
         result = json.loads(raw)
         return {
-            "label": result["label"],
-            "score": round(float(result["score"]), 3)
+            "label": result.get("label", "neutral"),
+            "score": round(float(result.get("score", 0.5)), 3),
+            "reasoning": result.get("reasoning", "")
         }
-    except (json.JSONDecodeError, KeyError) as e:
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
         logger.warning(f"Failed to parse tone response: {raw}")
-        return {"label": "neutral", "score": 0.5}
+        return {"label": "neutral", "score": 0.5, "reasoning": ""}
 
 
 def calculate_entity_density(text: str) -> float:
     """
     Estimate factual density by counting capitalised proper nouns.
-    Lightweight heuristic — no API call needed.
     """
     words = text.split()
     if not words:
@@ -104,4 +127,4 @@ def calculate_entity_density(text: str) -> float:
     ]
 
     density = len(entities) / len(words)
-    return round(density, 3)
+    return round(min(density, 1.0), 3)

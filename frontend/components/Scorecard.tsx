@@ -43,11 +43,18 @@ export default function Scorecard({ result }: Props) {
       {/* Scorecard panel */}
       <div className="rounded-2xl p-8 mb-6"
         style={{ backgroundColor: "white", border: "1px solid var(--border)" }}>
-
         <div className="flex flex-col gap-8">
-          <BiasSpectrum label={result.bias.label} confidence={result.bias.confidence} />
+          <BiasSpectrum
+            label={result.bias.label}
+            confidence={result.bias.confidence}
+            reasoning={result.bias.reasoning}
+          />
           <div style={{ borderTop: "1px solid var(--border)" }} />
-          <ToneMeter label={result.tone.label} score={result.tone.score} />
+          <ToneMeter
+            label={result.tone.label}
+            score={result.tone.score}
+            reasoning={result.tone.reasoning}
+          />
           <div style={{ borderTop: "1px solid var(--border)" }} />
           <EntityScore score={result.entity_density} />
         </div>

@@ -3,11 +3,13 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export interface BiasResult {
   label: string;
   confidence: number;
+  reasoning?: string;
 }
 
 export interface ToneResult {
   label: string;
   score: number;
+  reasoning?: string;
 }
 
 export interface AnalysisResult {

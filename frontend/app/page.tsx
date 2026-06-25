@@ -14,11 +14,9 @@ export default function Home() {
 
   async function handleAnalyse() {
     if (!url.trim()) return;
-
     setState("loading");
     setError("");
     setResult(null);
-
     try {
       const data = await analyseArticle(url.trim());
       setResult(data);
@@ -112,14 +110,15 @@ export default function Home() {
 
           {/* Error message */}
           {state === "error" && (
-            <p className="mt-3 text-sm px-4 py-3 rounded-xl"
+            <div className="mt-3 text-sm px-4 py-3 rounded-xl"
               style={{
                 backgroundColor: "#FEF2F2",
-                color: "#EF4444",
+                color: "#DC2626",
                 border: "1px solid #FECACA"
               }}>
-              {error}. Check the URL and try again.
-            </p>
+              <span className="font-medium">Could not analyse this article. </span>
+              {error}
+            </div>
           )}
         </div>
       )}
@@ -127,7 +126,6 @@ export default function Home() {
       {/* Results */}
       {state === "result" && result && (
         <div className="max-w-2xl mx-auto">
-          {/* Analyse another */}
           <div className="flex gap-3 mb-8">
             <input
               type="url"

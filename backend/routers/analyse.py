@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from backend.models.schemas import AnalyseRequest, AnalyseResponse
-from backend.services.scraper import scrape_article, truncate_for_api, ScraperError
+from backend.services.scraper import scrape_article, truncate_for_api, ScraperError, PaywallError
 from backend.services.classifier import classify_bias, classify_tone, calculate_entity_density
 from backend.services.summariser import summarise
 from backend.db.supabase import get_cached_analysis, save_analysis
@@ -13,16 +13,6 @@ logger = logging.getLogger(__name__)
 
 @router.post("/analyse", response_model=AnalyseResponse)
 async def analyse_article(request: AnalyseRequest):
-    """
-    Main endpoint. Takes a URL, returns a full scorecard.
-    
-    Flow:
-    1. Check cache
-    2. Scrape article
-    3. Run ML pipeline
-    4. Save to cache
-    5. Return result
-    """
     url_str = str(request.url)
 
     # ── Step 1: Check cache ──────────────────────────────────────
@@ -33,37 +23,48 @@ async def analyse_article(request: AnalyseRequest):
             url=cached["url"],
             headline=cached["headline"],
             source=cached["source"],
-            bias={"label": cached["bias_label"], "confidence": cached["bias_score"]},
-            tone={"label": cached["tone_label"], "score": cached["tone_score"]},
+            bias={
+                "label": cached["bias_label"],
+                "confidence": cached["bias_score"],
+                "reasoning": cached.get("bias_reasoning", "")
+            },
+            tone={
+                "label": cached["tone_label"],
+                "score": cached["tone_score"],
+                "reasoning": cached.get("tone_reasoning", "")
+            },
             entity_density=cached["entity_density"],
             summary=cached["summary"],
             analysed_at=cached["analysed_at"],
             cached=True
         )
 
-    # ── Step 2: Scrape article ───────────────────────────────────
+    # ── Step 2: Scrape ───────────────────────────────────────────
     try:
         article = scrape_article(url_str)
+    except PaywallError as e:
+        raise HTTPException(status_code=451, detail=str(e))
     except ScraperError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
     truncated_text = truncate_for_api(article["text"])
 
-    # ── Step 3: Run ML pipeline ──────────────────────────────────
+    # ── Step 3: ML pipeline ──────────────────────────────────────
     try:
         bias = classify_bias(truncated_text)
         tone = classify_tone(truncated_text)
         entity_density = calculate_entity_density(article["text"])
         summary = summarise(truncated_text)
     except Exception as e:
-        logger.error(f"ML pipeline failed: {str(e)}")
+        logger.error(f"ML pipeline failed for {url_str}: {str(e)}")
         raise HTTPException(
             status_code=503,
-            detail=str(e)
+            detail="AI analysis temporarily unavailable. Please try again."
         )
 
-    # ── Step 4: Save to cache ────────────────────────────────────
+    # ── Step 4: Cache result ─────────────────────────────────────
     now = datetime.now(timezone.utc)
+
     save_analysis({
         "url": url_str,
         "headline": article["headline"],
@@ -74,11 +75,11 @@ async def analyse_article(request: AnalyseRequest):
         "tone_score": tone["score"],
         "entity_density": entity_density,
         "summary": summary,
-        "full_text": article["text"][:5000],  # Store first 5000 chars
+        "full_text": article["text"][:5000],
         "analysed_at": now.isoformat()
     })
 
-    # ── Step 5: Return result ────────────────────────────────────
+    # ── Step 5: Return ───────────────────────────────────────────
     return AnalyseResponse(
         url=url_str,
         headline=article["headline"],
@@ -89,7 +90,8 @@ async def analyse_article(request: AnalyseRequest):
         summary=summary,
         analysed_at=now,
         cached=False
-    ) 
+    )
+
 
 @router.get("/debug")
 async def debug():
@@ -97,19 +99,14 @@ async def debug():
     import anthropic
 
     results = {}
-
-    # Test env vars
-    hf_key = os.getenv("HUGGINGFACE_API_KEY")
-    sb_url = os.getenv("SUPABASE_URL")
     ant_key = os.getenv("ANTHROPIC_API_KEY")
+    sb_url = os.getenv("SUPABASE_URL")
 
     results["env"] = {
         "anthropic_key_present": bool(ant_key),
-        "anthropic_key_prefix": ant_key[:10] if ant_key else None,
         "sb_url": sb_url,
     }
 
-    # Test Anthropic
     try:
         client = anthropic.Anthropic(api_key=ant_key)
         msg = client.messages.create(
@@ -121,7 +118,6 @@ async def debug():
     except Exception as e:
         results["anthropic"] = {"error": str(e)}
 
-    # Test Supabase
     try:
         import httpx
         r = httpx.get(sb_url, timeout=10.0)
@@ -129,7 +125,6 @@ async def debug():
     except Exception as e:
         results["supabase"] = {"error": str(e)}
 
-    # Test scraper
     try:
         from backend.services.scraper import scrape_article
         article = scrape_article("https://www.bbc.com/news/world")

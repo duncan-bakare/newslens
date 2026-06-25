@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 interface Props {
   label: string;
   confidence: number;
+  reasoning?: string;
 }
 
-// Map bias labels to positions on the spectrum (0 = far left, 100 = far right)
 const BIAS_POSITIONS: Record<string, number> = {
   "left-wing": 8,
   "centre-left": 28,
@@ -24,13 +24,12 @@ const BIAS_COLOURS: Record<string, string> = {
   "right-wing": "#EF4444",
 };
 
-export default function BiasSpectrum({ label, confidence }: Props) {
+export default function BiasSpectrum({ label, confidence, reasoning }: Props) {
   const [animated, setAnimated] = useState(false);
   const position = BIAS_POSITIONS[label] ?? 50;
   const colour = BIAS_COLOURS[label] ?? "#10B981";
 
   useEffect(() => {
-    // Trigger animation after mount
     const timer = setTimeout(() => setAnimated(true), 100);
     return () => clearTimeout(timer);
   }, []);
@@ -74,6 +73,12 @@ export default function BiasSpectrum({ label, confidence }: Props) {
         <span className="mono text-xs" style={{ color: "var(--lead)" }}>Centre</span>
         <span className="mono text-xs" style={{ color: "var(--lead)" }}>Right</span>
       </div>
+
+      {reasoning && (
+        <p className="text-xs mt-3 italic" style={{ color: "var(--lead)" }}>
+          {reasoning}
+        </p>
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 interface Props {
   label: string;
   score: number;
+  reasoning?: string;
 }
 
 const TONE_COLOURS: Record<string, string> = {
@@ -14,7 +15,7 @@ const TONE_COLOURS: Record<string, string> = {
   "highly charged": "#EF4444",
 };
 
-export default function ToneMeter({ label, score }: Props) {
+export default function ToneMeter({ label, score, reasoning }: Props) {
   const [animated, setAnimated] = useState(false);
   const colour = TONE_COLOURS[label] ?? "#10B981";
   const percentage = Math.round(score * 100);
@@ -53,6 +54,12 @@ export default function ToneMeter({ label, score }: Props) {
         <span className="mono text-xs" style={{ color: "var(--lead)" }}>Neutral</span>
         <span className="mono text-xs" style={{ color: "var(--lead)" }}>Highly charged</span>
       </div>
+
+      {reasoning && (
+        <p className="text-xs mt-3 italic" style={{ color: "var(--lead)" }}>
+          {reasoning}
+        </p>
+      )}
     </div>
   );
 }
