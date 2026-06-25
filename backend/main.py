@@ -1,10 +1,11 @@
 from dotenv import load_dotenv
-load_dotenv()  # Must be FIRST, before any other imports
+load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.routers.analyse import router as analyse_router
 import logging
+import os
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,12 +18,19 @@ app = FastAPI(
     version="0.1.0"
 )
 
+# Build allowed origins from environment
+allowed_origins = [
+    "http://localhost:3000",
+]
+
+# Add production frontend URL if set
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url:
+    allowed_origins.append(frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://newslens.vercel.app",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
