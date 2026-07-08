@@ -4,6 +4,10 @@ Understand the bias, tone, and credibility of any news article in seconds.
 
 **Live demo:** [https://newslens-tawny.vercel.app](https://newslens-tawny.vercel.app)
 
+## Demo
+
+![NewsLens Demo](newslensdemo.gif)
+
 ## The Problem
 
 Every day, millions of people read news articles and unconsciously absorb the framing, tone, and bias baked into them. Most readers can't tell the difference between a factually dense report and an emotionally charged opinion piece dressed up as news.
