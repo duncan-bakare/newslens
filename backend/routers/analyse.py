@@ -5,6 +5,7 @@ from backend.services.classifier import classify_bias, classify_tone, calculate_
 from backend.services.summariser import summarise
 from backend.db.supabase import get_cached_analysis, save_analysis
 from datetime import datetime, timezone
+import asyncio
 import logging
 
 router = APIRouter()
@@ -26,12 +27,12 @@ async def analyse_article(request: AnalyseRequest):
             bias={
                 "label": cached["bias_label"],
                 "confidence": cached["bias_score"],
-                "reasoning": cached.get("bias_reasoning", "")
+                "reasoning": cached.get("bias_reasoning") or ""
             },
             tone={
                 "label": cached["tone_label"],
                 "score": cached["tone_score"],
-                "reasoning": cached.get("tone_reasoning", "")
+                "reasoning": cached.get("tone_reasoning") or ""
             },
             entity_density=cached["entity_density"],
             summary=cached["summary"],
@@ -50,11 +51,16 @@ async def analyse_article(request: AnalyseRequest):
     truncated_text = truncate_for_api(article["text"])
 
     # ── Step 3: ML pipeline ──────────────────────────────────────
+    # The three Claude calls are independent, so run them concurrently. They are
+    # blocking SDK calls, so each goes to a worker thread; latency becomes the
+    # slowest single call instead of the sum of all three.
     try:
-        bias = classify_bias(truncated_text)
-        tone = classify_tone(truncated_text)
+        bias, tone, summary = await asyncio.gather(
+            asyncio.to_thread(classify_bias, truncated_text),
+            asyncio.to_thread(classify_tone, truncated_text),
+            asyncio.to_thread(summarise, truncated_text),
+        )
         entity_density = calculate_entity_density(article["text"])
-        summary = summarise(truncated_text)
     except Exception as e:
         logger.error(f"ML pipeline failed for {url_str}: {str(e)}")
         raise HTTPException(
@@ -71,8 +77,10 @@ async def analyse_article(request: AnalyseRequest):
         "source": article["source"],
         "bias_label": bias["label"],
         "bias_score": bias["confidence"],
+        "bias_reasoning": bias["reasoning"],
         "tone_label": tone["label"],
         "tone_score": tone["score"],
+        "tone_reasoning": tone["reasoning"],
         "entity_density": entity_density,
         "summary": summary,
         "full_text": article["text"][:5000],
