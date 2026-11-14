@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { analyseArticle, AnalysisResult } from "@/lib/api";
 import Scorecard from "@/components/Scorecard";
+import { EXAMPLES } from "@/lib/examples";
 
 type State = "idle" | "loading" | "result" | "error";
 
@@ -12,13 +13,15 @@ export default function Home() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string>("");
 
-  async function handleAnalyse() {
-    if (!url.trim()) return;
+  async function handleAnalyse(override?: string) {
+    const target = (override ?? url).trim();
+    if (!target) return;
+    setUrl(target);
     setState("loading");
     setError("");
     setResult(null);
     try {
-      const data = await analyseArticle(url.trim());
+      const data = await analyseArticle(target);
       setResult(data);
       setState("result");
     } catch (err) {
@@ -94,7 +97,7 @@ export default function Home() {
               }}
             />
             <button
-              onClick={handleAnalyse}
+              onClick={() => handleAnalyse()}
               disabled={state === "loading" || !url.trim()}
               className="px-6 py-3 rounded-xl text-sm font-medium transition-all"
               style={{
@@ -107,6 +110,30 @@ export default function Home() {
               {state === "loading" ? "Analysing..." : "Analyse"}
             </button>
           </div>
+
+          {/* Example articles */}
+          {state === "idle" && (
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <span className="text-xs" style={{ color: "var(--lead)" }}>
+                Try an example:
+              </span>
+              {EXAMPLES.map((ex) => (
+                <button
+                  key={ex.url}
+                  onClick={() => handleAnalyse(ex.url)}
+                  className="mono text-xs px-3 py-1.5 rounded-full transition-colors hover:bg-white"
+                  style={{
+                    border: "1px solid var(--border)",
+                    color: "var(--ink)",
+                    background: "transparent",
+                    cursor: "pointer",
+                  }}
+                >
+                  {ex.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Error message */}
           {state === "error" && (
@@ -125,8 +152,8 @@ export default function Home() {
 
       {/* Results */}
       {state === "result" && result && (
-        <div className="max-w-2xl mx-auto">
-          <div className="flex gap-3 mb-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex gap-3 mb-10 max-w-2xl mx-auto">
             <input
               type="url"
               value={url}
@@ -142,7 +169,7 @@ export default function Home() {
               }}
             />
             <button
-              onClick={handleAnalyse}
+              onClick={() => handleAnalyse()}
               className="px-6 py-3 rounded-xl text-sm font-medium"
               style={{
                 backgroundColor: "var(--signal)",
@@ -188,8 +215,12 @@ export default function Home() {
 
       {/* Footer */}
       <div className="text-center mt-16">
-        <p className="mono text-xs" style={{ color: "var(--border)" }}>
-          NewsLens · AI-powered · Built with FastAPI + Next.js
+        <p className="mono text-xs" style={{ color: "var(--lead)", opacity: 0.7 }}>
+          NewsLens · AI-powered · Built with FastAPI + Next.js ·{" "}
+          <a href="https://github.com/duncan-bakare/newslens" target="_blank"
+            rel="noopener noreferrer" className="underline underline-offset-4">
+            GitHub
+          </a>
         </p>
       </div>
     </main>

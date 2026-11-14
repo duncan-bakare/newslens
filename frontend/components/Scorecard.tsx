@@ -13,7 +13,7 @@ export default function Scorecard({ result }: Props) {
   });
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
+    <div className="w-full max-w-5xl mx-auto">
 
       {/* Header */}
       <div className="mb-8">
@@ -29,8 +29,10 @@ export default function Scorecard({ result }: Props) {
             {date}
           </span>
           {result.cached && (
-            <span className="mono text-xs" style={{ color: "var(--lead)" }}>
-              · cached
+            <span className="mono text-xs px-2 py-0.5 rounded-full"
+              style={{ border: "1px solid var(--border)", color: "var(--lead)" }}
+              title="Served from cache, so this article was analysed before">
+              cached
             </span>
           )}
         </div>
@@ -40,8 +42,10 @@ export default function Scorecard({ result }: Props) {
         </h1>
       </div>
 
+      <div className="grid gap-6 lg:grid-cols-5 lg:items-start">
+
       {/* Scorecard panel */}
-      <div className="rounded-2xl p-8 mb-6"
+      <div className="rounded-2xl p-8 lg:col-span-3"
         style={{ backgroundColor: "white", border: "1px solid var(--border)" }}>
         <div className="flex flex-col gap-8">
           <BiasSpectrum
@@ -61,7 +65,7 @@ export default function Scorecard({ result }: Props) {
       </div>
 
       {/* Neutral summary */}
-      <div className="rounded-2xl p-8"
+      <div className="rounded-2xl p-8 lg:col-span-2 lg:sticky lg:top-8"
         style={{ backgroundColor: "white", border: "1px solid var(--border)" }}>
         <span className="text-xs font-medium tracking-widest uppercase block mb-4"
           style={{ color: "var(--lead)" }}>
@@ -73,6 +77,8 @@ export default function Scorecard({ result }: Props) {
         <p className="text-xs mt-4" style={{ color: "var(--lead)" }}>
           Rewritten by AI to remove framing and emotional language.
         </p>
+      </div>
+
       </div>
 
       {/* Source link */}
