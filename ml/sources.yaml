@@ -1,0 +1,55 @@
+# Outlets used to build the evaluation set.
+#
+# `label` is a SOURCE-LEVEL proxy for article bias, taken from public media-bias
+# ratings. Check every entry against https://www.allsides.com/media-bias/ratings
+# (or Media Bias/Fact Check) before trusting results: ratings change, and I could
+# not verify these feed URLs from the build environment. The collector skips any
+# feed that fails, so a dead URL costs you nothing but a warning.
+#
+# `aliases` are the outlet's names as they appear in article text; the baseline
+# model scrubs them so it can't just spot the publisher's name.
+#
+# Valid labels: left-wing, centre-left, centre, centre-right, right-wing
+# Paywalled outlets are omitted because backend/services/scraper.py refuses them.
+
+sources:
+  - name: theguardian.com
+    feed: https://www.theguardian.com/world/rss
+    label: centre-left
+    aliases: ["the guardian", "guardian"]
+  - name: huffpost.com
+    feed: https://www.huffpost.com/section/front-page/feed
+    label: left-wing
+    aliases: ["huffpost", "huffington post"]
+  - name: vox.com
+    feed: https://www.vox.com/rss/index.xml
+    label: left-wing
+    aliases: ["vox"]
+  - name: independent.co.uk
+    feed: https://www.independent.co.uk/news/world/rss
+    label: centre-left
+    aliases: ["the independent"]
+  - name: bbc.co.uk
+    feed: http://feeds.bbci.co.uk/news/rss.xml
+    label: centre
+    aliases: ["bbc", "bbc news"]
+  - name: thehill.com
+    feed: https://thehill.com/feed/
+    label: centre
+    aliases: ["the hill"]
+  - name: nypost.com
+    feed: https://nypost.com/feed/
+    label: centre-right
+    aliases: ["new york post", "ny post", "nypost"]
+  - name: foxnews.com
+    feed: https://moxie.foxnews.com/google-publisher/latest.xml
+    label: centre-right
+    aliases: ["fox news", "foxnews"]
+  - name: washingtonexaminer.com
+    feed: https://www.washingtonexaminer.com/feed
+    label: right-wing
+    aliases: ["washington examiner"]
+  - name: breitbart.com
+    feed: https://feeds.feedburner.com/breitbart
+    label: right-wing
+    aliases: ["breitbart", "breitbart news"]

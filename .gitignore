@@ -22,3 +22,7 @@ npm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# ML evaluation artefacts (regenerate with python -m ml.collect_dataset / ml.evaluate)
+ml/data/
+ml/results/

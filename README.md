@@ -140,6 +140,26 @@ Open http://localhost:3000 and paste a news article URL.
 - `NEXT_PUBLIC_API_URL` points to Railway backend
 - Automatic HTTPS, global CDN
 
+## Model Evaluation
+
+The classifier is measured, not just eyeballed. The `ml/` package builds a labelled dataset, scores the production bias classifier against it, and compares it with a Keras neural network trained on the same data.
+
+```bash
+pip install -r ml/requirements.txt
+python -m ml.collect_dataset --per-source 20          # scrape articles from RSS feeds (ml/sources.yaml)
+python -m ml.evaluate                                 # score Claude Haiku (needs ANTHROPIC_API_KEY)
+python -m ml.baseline_keras --claude-preds ml/results/claude_predictions.jsonl
+python -m pytest tests                                # unit tests for the metrics and splitting logic
+```
+
+**Method**
+- Ground truth is the outlet's published bias rating, a source-level proxy for article-level bias. It is noisy, so results are indicative, not exact.
+- Reported metrics: accuracy, within-one-class accuracy (centre-left vs left-wing is a smaller error than left vs right), macro-F1, mean absolute error on the ordered scale, a confusion matrix, per-outlet breakdown, and calibration (does a stated confidence of 0.8 mean it is right 80% of the time?).
+- The baseline is TF-IDF features into a dense Keras ANN. It is split leave-one-outlet-out per class, and outlet names are scrubbed from the text, so it cannot score well just by recognising a publisher's house style. Claude is scored on exactly the same held-out articles.
+- Predictions are cached, so re-running only pays for new articles.
+
+**Results:** _run the commands above and paste the table from `ml/results/` here._
+
 ## Key Engineering Decisions
 
 ### Why Claude Haiku instead of open-source models?

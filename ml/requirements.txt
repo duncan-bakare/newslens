@@ -1,0 +1,9 @@
+# Evaluation + baseline only. Kept separate from the deployed backend so Railway
+# never installs TensorFlow. Install with: pip install -r ml/requirements.txt
+tensorflow>=2.16
+scikit-learn
+numpy
+matplotlib
+pyyaml
+feedparser
+pytest
